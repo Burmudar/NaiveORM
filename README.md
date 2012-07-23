@@ -5,60 +5,60 @@ Small ORM which doesn't do much. Except map results to objects and generate inse
 
 Example for a SelectQuery:
 
-AdImage adInfo = new AdImage();
+	AdImage adInfo = new AdImage();
 
-DatabaseManager db = new DatabaseManager(getDatasource());
-String queryString = "select * from MYSCHEMA.AD_IMAGES";
-SelectQuery<AdImage> query = new SelectQuery<AdImage>(queryString, AdImage.class);
-query.setQueryParameterAdapter(new QueryParameterAdapter() {
-	
-	public void setParametersOn(PreparedStatement statement)
-			throws SQLException {
-		statement.setInt(1, imageId);
+	DatabaseManager db = new DatabaseManager(getDatasource());
+	String queryString = "select * from MYSCHEMA.AD_IMAGES";
+	SelectQuery<AdImage> query = new SelectQuery<AdImage>(queryString, AdImage.class);
+	query.setQueryParameterAdapter(new QueryParameterAdapter() {
+		
+		public void setParametersOn(PreparedStatement statement)
+				throws SQLException {
+			statement.setInt(1, imageId);
+		}
+	});
+	try {
+		List<AdImage> images = db.<AdImage>executeQuery(query);
+		if(images.isEmpty() == false) {
+			adInfo = images.get(0);
+		} else {
+			logger.debug("<AdInfo> There is no Ad information in the database.");
+		}
+	} catch (DatabaseManagerException e) {
+		logger.debug(e);
 	}
-});
-try {
-	List<AdImage> images = db.<AdImage>executeQuery(query);
-	if(images.isEmpty() == false) {
-		adInfo = images.get(0);
-	} else {
-		logger.debug("<AdInfo> There is no Ad information in the database.");
-	}
-} catch (DatabaseManagerException e) {
-	logger.debug(e);
-}
 
 Example for a SelectQuery with where clause:
 
-AdImage adInfo = new AdImage();
-DatabaseManager db = new DatabaseManager(getDatasource());
-String queryString = "select * from MYSCHEMA.AD_IMAGES where id = ?";
-SelectQuery<AdImage> query = new SelectQuery<AdImage>(queryString, AdImage.class);
-query.setQueryParameterAdapter(new QueryParameterAdapter() {
-	
-	public void setParametersOn(PreparedStatement statement)
-			throws SQLException {
-		statement.setInt(1, imageId);
+	AdImage adInfo = new AdImage();
+	DatabaseManager db = new DatabaseManager(getDatasource());
+	String queryString = "select * from MYSCHEMA.AD_IMAGES where id = ?";
+	SelectQuery<AdImage> query = new SelectQuery<AdImage>(queryString, AdImage.class);
+	query.setQueryParameterAdapter(new QueryParameterAdapter() {
+		
+		public void setParametersOn(PreparedStatement statement)
+				throws SQLException {
+			statement.setInt(1, imageId);
+		}
+	});
+	try {
+		List<AdImage> images = db.<AdImage>executeQuery(query);
+		if(images.isEmpty() == false) {
+			adInfo = images.get(0);
+		} else {
+			logger.debug("<AdInfo> There is no Ad information in the database.");
+		}
+	} catch (DatabaseManagerException e) {
+		logger.debug(e);
 	}
-});
-try {
-	List<AdImage> images = db.<AdImage>executeQuery(query);
-	if(images.isEmpty() == false) {
-		adInfo = images.get(0);
-	} else {
-		logger.debug("<AdInfo> There is no Ad information in the database.");
-	}
-} catch (DatabaseManagerException e) {
-	logger.debug(e);
-}
 
 Example for Generated InsertQuery:
 
-DatabaseManager db = new DatabaseManager(getDatasource());
-MobileAdImage adImage = new MobileAdImage();
-InsertQueryGenerator<MobileAdImage> generator = new InsertQueryGenerator<MobileAdImage>(MobileAdImage.class);
-UpdateQuery query = generator.generate(adImage);
-int rowsChanged = db.<MobileAdImage>executeQuery(query);
+	DatabaseManager db = new DatabaseManager(getDatasource());
+	MobileAdImage adImage = new MobileAdImage();
+	InsertQueryGenerator<MobileAdImage> generator = new InsertQueryGenerator<MobileAdImage>(MobileAdImage.class);
+	UpdateQuery query = generator.generate(adImage);
+	int rowsChanged = db.<MobileAdImage>executeQuery(query);
 
 Note:
 - getDataSource() is a method that uses JNDI lookup for retrieval of a AppServer configured Datasource.
