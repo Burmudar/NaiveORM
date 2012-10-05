@@ -69,6 +69,9 @@ public class FieldDetailStore {
     }
     
     public void addGetMethod(Field field, Method method) {
+        if(field == null) {
+            throw new IllegalArgumentException("Field cannot be null");
+        }
         FieldStoreItem item = store.get(FieldStoreItem.createKey(field));
         if(item != null) {
             item.setGetMethod(method);
@@ -80,6 +83,9 @@ public class FieldDetailStore {
     }
     
     public void addSetMethod(Field field, Method method) {
+        if(field == null) {
+            throw new IllegalArgumentException("Field cannot be null");
+        }
         FieldStoreItem item = store.get(FieldStoreItem.createKey(field));
         if(item != null) {
             item.setSetMethod(method);
@@ -91,6 +97,9 @@ public class FieldDetailStore {
     }
     
     public void addAnnotation(Field field, Class<? extends Annotation> annotation) {
+        if(field == null) {
+            throw new IllegalArgumentException("Field cannot be null");
+        }
         FieldStoreItem item = store.get(FieldStoreItem.createKey(field));
         if(item != null) {
             item.setAnnotation(annotation);
