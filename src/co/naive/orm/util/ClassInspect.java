@@ -1,18 +1,28 @@
 package co.naive.orm.util;
 
-import java.io.InvalidClassException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.sql.PreparedStatement;
+import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.xml.bind.annotation.XmlElement;
 
 public class ClassInspect {
 	private Field[] fields;
 	private Class<?> inspectedClass;
+        private FieldDetailStore fieldDetailStore;
+
+        public FieldDetailStore getFieldDetailStore() {
+            return fieldDetailStore;
+        }
+
+        public void setFieldDetailStore(FieldDetailStore fieldDetailStore) {
+            this.fieldDetailStore = fieldDetailStore;
+        }
+        
 	public Field[] getFields() {
 		return fields;
 	}
@@ -28,6 +38,7 @@ public class ClassInspect {
 	}
 	
 	public ClassInspect(Class<?> objectClass) {
+                setFieldDetailStore(new FieldDetailStore());
 		setInspectedClass(objectClass);
 		setFields(objectClass.getDeclaredFields());
 	}
@@ -56,10 +67,16 @@ public class ClassInspect {
 	
 	public Method findGetMethod(Field field)  {
 		if(field == null)
-			return null;
+                    return null;
+                if(getFieldDetailStore().isGetMethodPresentFor(field)) {
+                    return getFieldDetailStore().getMethodOf(field);
+                }
 		String getterName = createMethodName("get", field.getName());
+                
 		try {
-			return getInspectedClass().getDeclaredMethod(getterName);
+			Method getMethod = getInspectedClass().getDeclaredMethod(getterName);
+                        getFieldDetailStore().addSetMethod(field,getMethod);
+			return getMethod;
 		} catch (SecurityException e) {
 			e.printStackTrace();
 		} catch (NoSuchMethodException e) {
@@ -72,9 +89,15 @@ public class ClassInspect {
 	public Method findIsMethod(Field field) {
 		if(field == null)
 			return null;
+                if(getFieldDetailStore().isSetMethodPresentFor(field)) {
+                    return getFieldDetailStore().setMethodOf(field);
+                }
 		String getterName = createMethodName("is", field.getName());
+                
 		try {
-			return getInspectedClass().getDeclaredMethod(getterName);
+                        Method getMethod = getInspectedClass().getDeclaredMethod(getterName);
+                        getFieldDetailStore().addSetMethod(field,getMethod);
+			return getMethod;
 		} catch (SecurityException e) {
 			e.printStackTrace();
 		} catch (NoSuchMethodException e) {
@@ -86,9 +109,14 @@ public class ClassInspect {
 	public Method findSetMethod(Field field, Class<?> paramType) {
 		if(field == null)
 			return null;
+                if(getFieldDetailStore().isSetMethodPresentFor(field)) {
+                    return getFieldDetailStore().setMethodOf(field);
+                }
 		String setterName = createMethodName("set", field.getName());
 		try {
-			return getInspectedClass().getDeclaredMethod(setterName, paramType);
+			Method setMethod = getInspectedClass().getDeclaredMethod(setterName, paramType);
+                        getFieldDetailStore().addSetMethod(field,setMethod);
+                        return setMethod;
 		} catch (SecurityException e) {
 			e.printStackTrace();
 		} catch (NoSuchMethodException e) {
@@ -109,10 +137,13 @@ public class ClassInspect {
 				try {
 					Method nameMethod = annotationClass.getDeclaredMethod(attributeName);
 					Object invokeResult = nameMethod.invoke(annotation);
-					if(attributeValue.matches((String) invokeResult))
+					if(attributeValue.matches((String) invokeResult)) {
+                                                getFieldDetailStore().add(field);
+                                                getFieldDetailStore().addAnnotation(field, annotationClass);
 						return field;
-					else
+                                        } else {
 						continue;
+                                        }
 				} catch (IllegalArgumentException e) {
 					System.err.println("<ClassInspect> Failed to execute Annotation Method <" + attributeName +">. Method should accept no arguments.");
 				} catch (IllegalAccessException e) {
@@ -166,6 +197,7 @@ public class ClassInspect {
 				annotatedFields.add(field);
 			}
 		}
+                getFieldDetailStore().addAllFields(annotatedFields);
 		return annotatedFields;
 	}
 	
@@ -178,5 +210,27 @@ public class ClassInspect {
 		return null;
 	}
 	
+        public static void main(String args[]) {
+            ClassInspect ci = new ClassInspect(FieldStoreItem.class);
+            Field[] ciFields = ci.getFields();
+            for(Field field : ciFields) {
+                long now = System.currentTimeMillis();
+                ci.findGetMethod(field);
+                long timeTaken = System.currentTimeMillis() - now;
+                System.out.println("Took [" + timeTaken + "] to find <" + field.getName() + "> GET method <1st try>");
+                now = System.currentTimeMillis();
+                ci.findGetMethod(field);
+                timeTaken = System.currentTimeMillis() - now;
+                System.out.println("Took [" + timeTaken + "] to find <" + field.getName() + "> GET method <2st try>");
+                now = System.currentTimeMillis();
+                ci.findSetMethod(field, field.getType());
+                timeTaken = System.currentTimeMillis() - now;
+                System.out.println("Took [" + timeTaken + "] to find <" + field.getName() + "> SET method <1st try>");
+                now = System.currentTimeMillis();
+                ci.findSetMethod(field, field.getType());
+                timeTaken = System.currentTimeMillis() - now;
+                System.out.println("Took [" + timeTaken + "] to find <" + field.getName() + "> SET method <2st try>");
+            }
+        }
 	
 }
