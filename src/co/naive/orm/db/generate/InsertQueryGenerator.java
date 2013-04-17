@@ -15,7 +15,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import co.naive.orm.db.query.UpdateQuery;
-import co.naive.orm.util.ClassInspect;
+import co.naive.orm.refl.ClassInspect;
+
 
 public class InsertQueryGenerator<E> {
 	private static final String INSERT_PREFIX = "INSERT INTO ";
@@ -44,7 +45,7 @@ public class InsertQueryGenerator<E> {
 		this.instanceClass = clazz;
 	}
 	
-	public UpdateQuery generate(E value) {
+	public UpdateQuery<E> generate(E value) {
 		logger.info("Generating query [start]");
 		String insertQuery = createInsertQuery();
 		logger.debug("Class for Insert query generation: " + getInstanceClass().getName());
@@ -53,13 +54,13 @@ public class InsertQueryGenerator<E> {
 		logger.debug("Generated query has <" + queryParameters.size() + "> parameters");
 		InsertParameterAdapter parameterAdapter = new InsertParameterAdapter(queryParameters);
 		logger.info("Generating query [done]");
-		return new UpdateQuery(insertQuery, parameterAdapter);
+		return new UpdateQuery<E>(insertQuery, parameterAdapter);
 	}
 	
-	public UpdateQuery generate(List<E> valueList) {
+	public UpdateQuery<E> generate(List<E> valueList) {
 		//String insertPrefix = createInsertQuery();
 		
-		return new UpdateQuery(null, null);
+		return new UpdateQuery<E>(null);
 	}
 
 	private String createInsertQuery() {
@@ -77,7 +78,7 @@ public class InsertQueryGenerator<E> {
 		if(tableAnnotation == null)
 			return "";
 		StringBuilder builder = new StringBuilder();
-		String schema = tableAnnotation.schema();
+		String schema = tableAnnotation.schema().trim();
 		String tableName = tableAnnotation.name();
 		builder.delete(0, builder.length());
 		builder.append(INSERT_PREFIX);

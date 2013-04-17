@@ -13,10 +13,12 @@ import java.util.Map.Entry;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import co.naive.orm.db.query.QueryParameterAdapter;
-import co.naive.orm.util.ClassInspect;
+import co.naive.orm.db.query.PreQueryAdapter;
+import co.naive.orm.refl.ClassInspect;
 
-public class InsertParameterAdapter implements QueryParameterAdapter{
+
+
+public class InsertParameterAdapter implements PreQueryAdapter{
 	private List<Entry<Integer, Object[]>> parameters;
 	private static Log logger = LogFactory.getLog(InsertParameterAdapter.class);
 	private ClassInspect classInspect;
