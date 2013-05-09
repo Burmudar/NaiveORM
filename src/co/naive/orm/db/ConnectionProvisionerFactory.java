@@ -16,7 +16,7 @@ import org.apache.commons.logging.LogFactory;
  */
 public final class ConnectionProvisionerFactory {
 	
-	private static Log logger = LogFactory.getLog(DBFactory.class);
+	private static Log logger = LogFactory.getLog(ConnectionProvisionerFactory.class);
 	
 	private ConnectionProvisionerFactory() {}
 	

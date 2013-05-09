@@ -58,7 +58,7 @@ import co.naive.orm.refl.ClassInspect;
  * @param <E> Any class whose fields are annotated with {@link Column} or {@link Embedded} annotations
  */
 public class DefaultQueryResultMapper<E> implements QueryResultTransformer<E>{
-	private static Log logger = LogFactory.getLog(DBFactory.class);
+	private static Log logger = LogFactory.getLog(DefaultQueryResultMapper.class);
 	private boolean strict;
 	
 	private ClassInspect classInspector;

@@ -4,8 +4,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import javax.sql.DataSource;
 
@@ -13,7 +15,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import co.naive.orm.db.exception.DatabaseManagerException;
+import co.naive.orm.db.exception.ResultMapException;
 import co.naive.orm.db.query.BaseQuery;
+import co.naive.orm.db.query.SelectQuery;
 import co.naive.orm.db.query.UpdateQuery;
 
 public class DatabaseManager {
@@ -25,142 +29,172 @@ public class DatabaseManager {
 		this.connectionProvisioner = provisioner;
 	}
 	
-	public synchronized <E> List<E> executeQuery(BaseQuery<E> query) throws DatabaseManagerException {
-		PreparedStatement queryStatement = null;
+	public <E> List<E> executeQuery(ConnectionInfo connInfo, SelectQuery<E> query) throws DatabaseManagerException {
+		
+		Connection conn = null;
+		PreparedStatement stmt = null;
 		ResultSet resultSet = null;
-		Connection connection = null;
+
 		try {
-			connection = connectionProvisioner.getConnection();
-			if(isConnectionValid(connection) == false)
-				return new LinkedList<E>();
+			conn = connInfo == null ? connectionProvisioner.getConnection() : connInfo.getConn();
 			logger.debug("<execute> Query [" + query.getQueryString() + "]");
 			logger.debug("<execute> Setting parameters on query ...");
-			queryStatement = query.toPreparedStatement(connection);
+			stmt = query.toPreparedStatement(conn);
 			logger.debug("<execute> Parameters on query was set successfully.");
-			boolean executeResult = queryStatement.execute();
+			boolean executeResult = stmt.execute();
 			logger.info("<execute> Query executed successfully and exited with result <" + executeResult + ">");
-			resultSet = queryStatement.getResultSet();
-			return query.toResult(resultSet);
+			resultSet = stmt.getResultSet();
+			logger.info("<execute> Mapping results to list of objects");
+			List<E> resultList = query.toResultList(resultSet);
+			logger.info("<execute> Post processing result set");
+			query.postProcess(resultSet);
+			return resultList;
 		} catch (SQLException e) {
-			rollbackConnection(connection);
-			e.printStackTrace();
-			throw new DatabaseManagerException("<execute> Failed to execute select query as the database threw an exception: \n" + e.getMessage());
-		} finally {
-			closeResource(resultSet);
-			closeResource(queryStatement);
-			closeResource(connection);
+			throw new DatabaseManagerException("Failed to do executeQuery, sql : " + query == null ? "null" : query.getQueryString(), e);
+		} catch (ResultMapException e) {
+			throw new DatabaseManagerException("Failed to do executeQuery as the result could not be mapped.", e);
+		} finally  {
+			closeResources(connInfo == null ? conn : null, stmt, resultSet);
 		}
+		
 	}
 	
-	public synchronized <E> int executeQuery(UpdateQuery query) throws DatabaseManagerException {
-		PreparedStatement queryStatement = null;
+	public <E> List<E> executeQuery(SelectQuery<E> query) throws DatabaseManagerException {
+		return executeQuery(null,query);
+	}
+	
+	public <E> int executeQuery(ConnectionInfo connInfo,UpdateQuery<E> query) throws DatabaseManagerException {
+		
+		Connection conn = null;
+		PreparedStatement stmt = null;
 		ResultSet resultSet = null;
-		Connection connection = null;
+
 		try {
-			connection = connectionProvisioner.getConnection();
-			if(isConnectionValid(connection) == false)
-				return 0;
-			logger.debug("<execute> Update Query [" + query.getQueryString() + "]");
+			conn = connInfo == null ? connectionProvisioner.getConnection() : connInfo.getConn();
+			logger.debug("<execute> Query [" + query.getQueryString() + "]");
 			logger.debug("<execute> Setting parameters on query ...");
-			queryStatement = query.toPreparedStatement(connection);
-			int count = queryStatement.executeUpdate();
-			logger.info("<execute> Update Query executed successfully. <" + count + "> row(s) were affected.");
-			connection.commit();
-			logger.debug("<execute> Query result commited.");
-			return count;
+			stmt = query.toPreparedStatement(conn);
+			logger.debug("<execute> Parameters on query was set successfully.");
+			int executeResult = stmt.executeUpdate();
+			logger.info("<execute> Query executed successfully and exited with result <" + executeResult + ">");
+			resultSet = stmt.getGeneratedKeys();
+			logger.info("<execute> Mapping generated fields to instances in query");
+			query.mapGeneratedFields(resultSet);
+			logger.info("<execute> Post processing result set");
+			query.postProcess(resultSet);
+			return executeResult;
 		} catch (SQLException e) {
-			rollbackConnection(connection);
-			e.printStackTrace();
-			throw new DatabaseManagerException("<execute> Failed to execute query as the database threw an exception: \n" + e.getMessage());
-		} finally {
-			closeResource(resultSet);
-			closeResource(queryStatement);
-			closeResource(connection);
+			throw new DatabaseManagerException("Failed to do executeQuery, sql : " + query == null ? "null" : query.getQueryString(), e);
+		} catch (ResultMapException e) {
+			throw new DatabaseManagerException("Failed to map Generated Fields after executing sql :" + query == null ? "null" : query.getQueryString(), e);
+		} finally  {
+			closeResources(connInfo == null ? conn : null, stmt, resultSet);
 		}
+		
+	}
+
+	public <E> int executeQuery(UpdateQuery<E> query) throws DatabaseManagerException {
+		return executeQuery(null,query);
 	}
 	
-	public synchronized <E> int executeQuery(List<UpdateQuery> queries) throws DatabaseManagerException {
-		PreparedStatement queryStatement = null;
+	
+	/**
+	 * This method will create a Map of key value pairs where the key contains the key from the mapped DTO which 
+	 * was obtained from the {@link KeyDTO#getKey()} method of the dto.
+	 * @param sql String value containing the query.
+	 * @param type Class object holding the type of object to be mapped.
+	 * @param params Object[] of query parameters which should be in the correct order as defined in the sql statement.
+	 * @param sorted Indicates if a TreeMap or HashMap will be returned.
+	 * @return Map<K,V> of values which can be obtained from the key.
+	 * @throws ServiceFailureException
+	 */
+	public <K, T>
+	Map<K,T> executeQueryForKeyMappedList(SelectQuery<T> query, boolean sorted) throws DatabaseManagerException {
+		Connection conn = null;
 		ResultSet resultSet = null;
-		Connection connection = null;
-		int count = 0;
+		PreparedStatement stmt = null;
 		try {
-			connection = connectionProvisioner.getConnection();
-			if(isConnectionValid(connection) == false) {
-				return 0;
-			}
-			for(UpdateQuery<E> query : queries) {
-				queryStatement = query.toPreparedStatement(connection);
-				count += queryStatement.executeUpdate();
-			}
-			connection.commit();
-			return count;
+			conn = connectionProvisioner.getConnection();
+			stmt = query.toPreparedStatement(conn);
+			logger.debug("<execute> Query [" + query.getQueryString() + "]");
+			logger.debug("<execute> Setting parameters on query ...");
+			stmt = query.toPreparedStatement(conn);
+			logger.debug("<execute> Parameters on query was set successfully.");
+			boolean executeResult = stmt.execute();
+			logger.info("<execute> Query executed successfully and exited with result <" + executeResult + ">");
+			resultSet = stmt.getResultSet();
+			Map<K, T> resultKeyMap = query.<K>toResultMap(resultSet,sorted);
+			logger.info("<execute> Post processing result set");
+			query.postProcess(resultSet);
+			return resultKeyMap;
 		} catch (SQLException e) {
-			rollbackConnection(connection);
-			e.printStackTrace();
-			throw new DatabaseManagerException("<execute> Failed to execute one or more update queries in the given query list, as the database threw an exception: \n" + e.getMessage());
+			throw new DatabaseManagerException("Error in queryKeyMappedList.", e);
+		} catch (ResultMapException e) {
+			throw new DatabaseManagerException("Failed to create Map as there was an error when mapping from the resultSet",e);
 		} finally {
-			closeResource(resultSet);
-			closeResource(queryStatement);
-			closeResource(connection);
+			closeResources(conn, stmt, resultSet);
 		}
 	}
 	
-	private boolean isConnectionValid(Connection connection) {
-		if(connection == null) {
-			logger.error("<databaseMngr> Connection received from datasource is null");
-			return false;
-		}
-		try {
-			if(connection.isClosed()) {
-				logger.error("<databaseMngr> Connection is already closed");
-				return false;
+	/**
+	 * Close resources. If null is passed for a resource, the resource will be ignored.
+	 * @param conn Connection
+	 * @param stmt Statement
+	 * @param rs ResultSet
+	 */
+	public static void closeResources(Connection conn, Statement stmt, ResultSet rs) {
+		closeConnection(conn);
+		closeStatement(stmt);
+		closeResult(rs);
+	}
+
+	/**
+	 * Close a result set
+	 * @param stmt Statement
+	 */
+	private static void closeResult(ResultSet rs) {
+		if( rs != null ) {
+			try {
+				if( !rs.isClosed() ) {
+					rs.close();
+				}
+			} catch (SQLException e) {
+				logger.error("Error closing the result set.", e);
 			}
-		} catch (SQLException e) {
-			logger.error("<databaseMngr> Error occured while querying if the connection is closed. Exception: \n" + e.getMessage());
-			return false;
-		}
-		return true;
+		}		
 	}
 	
-	private void rollbackConnection(Connection connection) throws DatabaseManagerException {
-		try {
-			connection.rollback();
-		} catch (SQLException e1) {
-			throw new DatabaseManagerException("<connection> Failed to rollback the connection.");
-		}
-	}
-	
-	private void closeResource(ResultSet resultSet) {
-		
-		try {
-			if(resultSet != null && resultSet.isClosed() == false) {
-				resultSet.close();
+	/**
+	 * Close a connection
+	 * @param stmt Statement
+	 */
+	private static void closeConnection(Connection conn) {
+		if( conn != null ) {
+			try {
+				if( !conn.isClosed() ) {
+					conn.close();
+				}
+			} catch (SQLException e) {
+				logger.error("Error closing the connection.", e);
 			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	private void closeResource(PreparedStatement preparedStatement) {
-		
-		try {
-			if(preparedStatement != null && preparedStatement.isClosed() == false) {
-				preparedStatement.close();
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
 		}
 	}
 
-	private void closeResource(Connection connection) {
-		try {
-			if(connection != null && connection.isClosed() == false) {
-				connection.close();
+	/**
+	 * Close a statment
+	 * @param stmt Statement
+	 */
+	private static void closeStatement(Statement stmt) {
+		if( stmt != null ) {
+			try {
+				if( !stmt.isClosed() ) {
+					stmt.close();
+				}
+			} catch (SQLException e) {
+				logger.error("Error closing the statement.", e);
 			}
-		} catch (SQLException e) {
-			e.printStackTrace();
 		}
-		
 	}
+
+
 }

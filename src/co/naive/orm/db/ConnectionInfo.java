@@ -101,7 +101,7 @@ public class ConnectionInfo {
 				conn.setAutoCommit(originalCommit);
 				inTransaction = false;
 			} catch(SQLException e) {
-				throw new ServiceFailureException("Error stopping transaction.", e);
+				throw new DatabaseManagerException("Error stopping transaction.", e);
 			}
 		}
 		return inTransaction;

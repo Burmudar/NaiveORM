@@ -15,9 +15,10 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import co.naive.orm.db.DBFactory;
-import co.naive.orm.db.DBManagerUtil;
-import co.naive.orm.db.exception.ServiceFailureException;
+import co.naive.orm.db.ConnectionProvisioner;
+import co.naive.orm.db.ConnectionProvisionerFactory;
+import co.naive.orm.db.DatabaseManager;
+import co.naive.orm.db.exception.DatabaseManagerException;
 import co.naive.orm.db.query.DefaultQueryAdapter;
 import co.naive.orm.db.query.PreQueryAdapter;
 import co.naive.orm.db.query.SelectQuery;
@@ -25,7 +26,7 @@ import co.naive.orm.db.query.UpdateQuery;
 
 
 public class DBManagerTest {
-  private DBManagerUtil db = null;
+  private DatabaseManager db = null;
   
   @DataProvider(name="db-records")
   public Object[][] getRecordsForInsert() throws IOException {
@@ -47,7 +48,7 @@ public class DBManagerTest {
   }
   
   @Test(dataProvider="db-records")
-  public void testInsert(Object ... values) throws ServiceFailureException {
+  public void testInsert(Object ... values) throws DatabaseManagerException {
 	UpdateQuery<Object> insert = TestDB.INSERT_RECORD;
 	insert.setQueryParameterAdapter(new DefaultQueryAdapter(values));
 	int result = db.executeQuery(insert);
@@ -55,7 +56,7 @@ public class DBManagerTest {
   }
   
   @Test(dependsOnMethods= {"testInsert"})
-  public void testGetAll() throws ServiceFailureException, IOException {
+  public void testGetAll() throws DatabaseManagerException, IOException {
 	  SelectQuery<TestRecord> query = TestDB.SELECT_QUERY;
 	  List<TestRecord> results = db.executeQuery(query);
 	  Assert.assertTrue(results.size() > 0);
@@ -69,7 +70,7 @@ public class DBManagerTest {
   }
   
   @Test(dependsOnMethods = {"testInsert"})
-  public void testGetMap() throws ServiceFailureException {
+  public void testGetMap() throws DatabaseManagerException {
 	  SelectQuery<TestRecord> query = TestDB.SELECT_QUERY;
 	  Map<Integer, TestRecord> map = db.<Integer,TestRecord>executeQueryForKeyMappedList(query, false);
 	  List<TestRecord> list = db.<TestRecord>executeQuery(query);
@@ -95,7 +96,7 @@ public class DBManagerTest {
   }
   
   @Test(dependsOnMethods={"testInsert"})
-  public void testEmbeddedMapping() throws IOException, ServiceFailureException {
+  public void testEmbeddedMapping() throws IOException, DatabaseManagerException {
 	  SelectQuery<TestEmbedded> query = TestDB.SELECT_QUERY_EMBEDDED;
 	  List<TestEmbedded> results = db.executeQuery(query);
 	  Assert.assertTrue(results.size() > 0);
@@ -108,7 +109,7 @@ public class DBManagerTest {
 	  }
   }
   @Test(dependsOnMethods={"testInsert"}, dataProvider="db-records")
-  public void testInsertWithGeneratedMapping(Object ... values) throws ServiceFailureException {
+  public void testInsertWithGeneratedMapping(Object ... values) throws DatabaseManagerException {
 	  TestRecord testRecord = new TestRecord();
 	  testRecord.setIntField((Integer) values[0]);
 	  testRecord.setFloatField((Double) values[1]);
@@ -123,7 +124,7 @@ public class DBManagerTest {
   }
   
   @Test(dependsOnMethods={"testGetAll"})
-  public void testDeeplyEmbedded() throws ServiceFailureException {
+  public void testDeeplyEmbedded() throws DatabaseManagerException {
 	  SelectQuery<NestedTest> query = TestDB.SELECT_QUERY_NESTED;
 	  List<NestedTest> results = db.executeQuery(query);
 	  Assert.assertTrue(results.size() > 0);
@@ -145,21 +146,22 @@ public class DBManagerTest {
   }
   
   @BeforeClass
-  public void beforeSuite() throws ServiceFailureException {
+  public void beforeSuite() throws DatabaseManagerException {
 	Map<String,String> meta = new HashMap<String,String>();
 	meta.put("host", "./");
 	meta.put("dbname", "TestDB");
-	db = DBFactory.initDerbyDB(meta);
+	ConnectionProvisioner derbyProvisioner = ConnectionProvisionerFactory.initDerbyDB(meta);
+	db = new DatabaseManager(derbyProvisioner);
 	try {
 		db.executeQuery(TestDB.DROP_TABLE);
-	} catch (ServiceFailureException e) {
+	} catch (DatabaseManagerException e) {
 		
 	}
 	db.executeQuery(TestDB.CREATE_TABLE);
   }
 
   @AfterClass
-  public void afterSuite() throws ServiceFailureException {
+  public void afterSuite() throws DatabaseManagerException {
 	  db.executeQuery(TestDB.DROP_TABLE);
   }
 
