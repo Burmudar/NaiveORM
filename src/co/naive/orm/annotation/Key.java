@@ -18,7 +18,7 @@ import co.naive.orm.db.DefaultQueryResultMapper;
  * Primarily, this annotation is only used when maps needs to be created from a list of objects, as can
  * be seen in the {@link DefaultQueryResultMapper#toResultMap(java.sql.ResultSet, boolean)} method.
  * </p>
- * @author William Bezuidenhout (bbdnet1030)
+ * @author William Bezuidenhout
  *
  */
 @Retention(value=RetentionPolicy.RUNTIME)

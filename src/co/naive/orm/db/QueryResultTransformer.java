@@ -14,7 +14,7 @@ import co.naive.orm.db.exception.ResultMapException;
  * The mapGenerated should only be used by Update or Insert Queries that need
  * to have auto generated database values mapped.
  * </p>
- * @author William Bezuidenhout (bbdnet1030)
+ * @author William Bezuidenhout
  *
  * @param <E>
  */
