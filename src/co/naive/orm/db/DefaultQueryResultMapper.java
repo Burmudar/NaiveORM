@@ -53,7 +53,7 @@ import co.naive.orm.refl.ClassInspect;
  * <p>
  * Lenient mapping does not throw a exception instead it just generates a warning in the log.
  * 
- * @author William Bezuidenhout (bbdnet1030)
+ * @author William Bezuidenhout
  *
  * @param <E> Any class whose fields are annotated with {@link Column} or {@link Embedded} annotations
  */

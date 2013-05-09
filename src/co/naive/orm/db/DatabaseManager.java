@@ -19,40 +19,18 @@ import co.naive.orm.db.query.UpdateQuery;
 public class DatabaseManager {
 	
 	private static Log logger = LogFactory.getLog(DatabaseManager.class);
-	private DataSource datasource;
-	
-	public DataSource getDbSource() {
-		return datasource;
-	}
+	private ConnectionProvisioner connectionProvisioner;
 
-	public boolean hasDataSource() {
-		return getDbSource() != null;
+	public DatabaseManager(ConnectionProvisioner provisioner) {
+		this.connectionProvisioner = provisioner;
 	}
-
-	public DatabaseManager(DataSource source) {
-		this.datasource = source;
-	}
-	
-	public Connection getConnection() throws DatabaseManagerException {
-		DataSource dataSource = getDbSource(); 
-		if(dataSource == null) {
-			throw new DatabaseManagerException("<connection> No Datasource. Cannot get a connection.");
-		}
-		try {
-			return dataSource.getConnection();
-		} catch (SQLException e) {
-			e.printStackTrace();
-			throw new DatabaseManagerException(e.getMessage());
-		}
-	}
-	
 	
 	public synchronized <E> List<E> executeQuery(BaseQuery<E> query) throws DatabaseManagerException {
 		PreparedStatement queryStatement = null;
 		ResultSet resultSet = null;
 		Connection connection = null;
 		try {
-			connection = getConnection();
+			connection = connectionProvisioner.getConnection();
 			if(isConnectionValid(connection) == false)
 				return new LinkedList<E>();
 			logger.debug("<execute> Query [" + query.getQueryString() + "]");
@@ -79,7 +57,7 @@ public class DatabaseManager {
 		ResultSet resultSet = null;
 		Connection connection = null;
 		try {
-			connection = getConnection();
+			connection = connectionProvisioner.getConnection();
 			if(isConnectionValid(connection) == false)
 				return 0;
 			logger.debug("<execute> Update Query [" + query.getQueryString() + "]");
@@ -107,11 +85,11 @@ public class DatabaseManager {
 		Connection connection = null;
 		int count = 0;
 		try {
-			connection = getConnection();
+			connection = connectionProvisioner.getConnection();
 			if(isConnectionValid(connection) == false) {
 				return 0;
 			}
-			for(UpdateQuery query : queries) {
+			for(UpdateQuery<E> query : queries) {
 				queryStatement = query.toPreparedStatement(connection);
 				count += queryStatement.executeUpdate();
 			}

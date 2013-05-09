@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import co.naive.orm.db.exception.DatabaseManagerException;
 import co.naive.orm.db.exception.ServiceFailureException;
 
 
@@ -13,7 +14,7 @@ import co.naive.orm.db.exception.ServiceFailureException;
  * Use this class to control the connection and transactions between SQL calls where more than one call
  * is made to tables and transaction funcionality is required.
  * 
- * @author Joe
+ * @author Joe Potgieter (joe@bbd.co.za)
  *
  */
 public class ConnectionInfo {
@@ -35,7 +36,7 @@ public class ConnectionInfo {
 		return originalCommit;
 	}
 
-	public ConnectionInfo(Connection connection) throws ServiceFailureException {
+	public ConnectionInfo(Connection connection) throws DatabaseManagerException {
 		conn = connection;
 	}
 
@@ -75,7 +76,7 @@ public class ConnectionInfo {
 		}
 	}
 
-	public boolean startTransaction() throws ServiceFailureException {
+	public boolean startTransaction() throws DatabaseManagerException {
 		if( !inTransaction ) {
 			if( conn == null ) {
 				throw new IllegalStateException("Connection closed!");
@@ -85,13 +86,13 @@ public class ConnectionInfo {
 				conn.setAutoCommit(false);
 				inTransaction = true;
 			} catch(SQLException e) {
-				throw new ServiceFailureException("Error starting transaction.", e);
+				throw new DatabaseManagerException("Error starting transaction.", e);
 			}
 		}
 		return inTransaction;
 	}
 	
-	public boolean stopTransaction() throws ServiceFailureException {
+	public boolean stopTransaction() throws DatabaseManagerException {
 		if( inTransaction ) {
 			if( conn == null ) {
 				throw new IllegalStateException("Connection closed!");
@@ -106,25 +107,25 @@ public class ConnectionInfo {
 		return inTransaction;
 	}
 
-	public void commit() throws ServiceFailureException {
+	public void commit() throws DatabaseManagerException {
 		try {
 			if( conn == null || conn.isClosed() || conn.getAutoCommit() == true ) {
 				throw new IllegalStateException("Transaction not valid for commit operation.");
 			}
 			conn.commit();
 		} catch(SQLException e) {
-			throw new ServiceFailureException("Error committing the transaction!",e);
+			throw new DatabaseManagerException("Error committing the transaction!",e);
 		}
 	}
 	
-	public void rollback() throws ServiceFailureException {
+	public void rollback() throws DatabaseManagerException {
 		try {
 			if( conn == null || conn.isClosed() || conn.getAutoCommit() == true ) {
 				throw new IllegalStateException("Transaction not valid for commit operation.");
 			}	
 			conn.rollback();
 		} catch(SQLException e) {
-			throw new ServiceFailureException("Error rolling back the transaction!");
+			throw new DatabaseManagerException("Error rolling back the transaction!");
 		}
 	}
 		
